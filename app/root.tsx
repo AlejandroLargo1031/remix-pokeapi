@@ -1,4 +1,8 @@
-import { json, redirect } from "@remix-run/node";
+import { json,
+  //  redirect 
+  } from "@remix-run/node";
+
+import { useState } from "react";
 
 import {
   Form,
@@ -24,21 +28,20 @@ export const links: LinksFunction = () => [
 ];
 
 export const action = async () => {
-  const defaultPokemonId = 1;
-  return redirect(`/contacts/${defaultPokemonId}/edit`);
+  
 };
 
-export const loader = async ({ request }) => {
-  const url = new URL(request.url); 
+export const loader = async (args: { request: Request }) => {
+  const url = new URL(args.request.url);
   const page = Number(url.searchParams.get("page")) || 1;
 
-  console.log("Página solicitada:", page);
+  console.log("Página solicitada:", page); 
 
   const limit = 20;
   const offset = (page - 1) * limit; 
 
   const API_URL = `https://pokeapi.co/api/v2/pokemon?limit=${limit}&offset=${offset}`;
-  console.log("URL generada:", API_URL);
+  console.log("URL generada:", API_URL); 
 
   const response = await fetch(API_URL);
 
@@ -48,7 +51,7 @@ export const loader = async ({ request }) => {
   }
 
   const data = await response.json();
-  const pokemons = data.results.map((pokemon, index) => ({
+  const pokemons = data.results.map((pokemon: { name: string; url: string }, index: number) => ({
     id: offset + index + 1,
     name: pokemon.name,
     url: pokemon.url,
@@ -61,6 +64,8 @@ export const loader = async ({ request }) => {
 export default function App() {
   const navigate = useNavigate();
   const { pokemons, page, hasNext } = useLoaderData<typeof loader>();
+    const [searchResults, setSearchResults] = useState(pokemons);
+  const [q, setQuery] = useState("");
 
   console.log("Página actual:", page);
 
@@ -75,6 +80,18 @@ export default function App() {
       navigate(`?page=${page + 1}`);
     }
   };
+
+   const handleSearch = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const searchQuery = event.target.value.toLowerCase();
+    setQuery(searchQuery);
+    console.log("Consultando pokemones con el nombre:", searchQuery);  
+
+    const filteredPokemons = pokemons.filter((pokemon: { id: number; name: string; url: string }) =>
+      pokemon.name.toLowerCase().includes(searchQuery)
+    );
+    setSearchResults(filteredPokemons);
+  };
+
 
   return (
     <html lang="en">
@@ -95,24 +112,25 @@ export default function App() {
                 placeholder="Search"
                 type="search"
                 name="q"
+                value={q}
+                onChange={handleSearch}
               />
               <div id="search-spinner" aria-hidden hidden={true} />
             </Form>
-            <Form method="post">
-              <button type="submit">Nuevo</button>
-            </Form>
-          </div>
-          <button onClick={handlePrevious} disabled={page === 1}>
+
+            <button onClick={handlePrevious} disabled={page === 1}>
             Previous
           </button>
           <br />
           <button onClick={handleNext} disabled={!hasNext}>
             Next
           </button>
+          </div>
+         
           <nav>
             {pokemons?.length ? (
               <ul>
-                {pokemons.map((pokemon) => (
+                {searchResults.map((pokemon: { id: number; name: string; url: string }) => (
                   <li key={pokemon.id}>
                     <NavLink
                       className={({ isActive, isPending }) =>
@@ -125,7 +143,7 @@ export default function App() {
                   </li>
                 ))}
               </ul>
-            ) : (
+            ) : ( 
               <p>
                 <i> Pokémon no found</i>
               </p>
